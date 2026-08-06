@@ -107,9 +107,15 @@ private:
    ClickButton* mLoop16BarsButton{ nullptr };
    float mLatencyFixMs{ 0.0f };
    FloatSlider* mLatencyFixMsSlider{ nullptr };
+   bool mPassthrough{ true };
+   Checkbox* mPassthroughCheckbox{ nullptr };
+   Checkbox* mFirstLoopCheckbox{ nullptr };
+   bool mFirstLoop{ false };
 
    double mLastCaptureMeasureTime{ 0.0 };
    double mStartRecordingMeasureTime{ -1 };
+   double mStartRecordingTimeMs{ -1 };
+   double mFirstLoopAudioStartMs{ -1 };
    int mLastPlayedSamplesAgo{ 0 };
    SwitchAndRamp mLoopWrapSmoother;
 };

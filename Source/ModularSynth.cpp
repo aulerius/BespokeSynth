@@ -259,6 +259,7 @@ void ModularSynth::Setup(juce::AudioDeviceManager* globalAudioDeviceManager, juc
    juce::File(ofToDataPath("scripts")).createDirectory();
    juce::File(ofToDataPath("internal")).createDirectory();
    juce::File(ofToDataPath("vst")).createDirectory();
+   juce::File(ofToDataPath("trackorganizer")).createDirectory();
 
    SynthInit();
 
@@ -2079,7 +2080,7 @@ void ModularSynth::MouseScrolled(float xScroll, float yScroll, bool isSmoothScro
             increment *= -1;
          auto value = dropDownList->GetMidiValue();
          value += increment;
-         dropDownList->SetFromMidiCC(value, NextBufferTime(false), false);
+         dropDownList->SetFromMidiCC(value, NextBufferTime(false), SetValueMethod::Increment);
          return;
       }
 
@@ -2117,7 +2118,7 @@ void ModularSynth::MouseScrolled(float xScroll, float yScroll, bool isSmoothScro
       else
          val += change;
       val = ofClamp(val, 0, 1);
-      gHoveredUIControl->SetFromMidiCC(val, NextBufferTime(false), false);
+      gHoveredUIControl->SetFromMidiCC(val, NextBufferTime(false), SetValueMethod::Increment);
 
       gHoveredUIControl->NotifyMouseScrolled(GetMouseX(&mModuleContainer), GetMouseY(&mModuleContainer), xScroll, yScroll, isSmoothScroll, isInvertedScroll);
    }
@@ -2454,9 +2455,9 @@ void ModularSynth::AudioIn(const float* const* input, int bufferSize, int nChann
    int oversampling = UserPrefs.oversampling.Get();
 
    assert(bufferSize * oversampling == mIOBufferSize);
-   assert(nChannels == (int)mInputBuffers.size());
 
-   for (int i = 0; i < nChannels; ++i)
+   int channelsToProcess = MIN(nChannels, (int)mInputBuffers.size());
+   for (int i = 0; i < channelsToProcess; ++i)
    {
       if (oversampling == 1)
       {
@@ -2785,11 +2786,9 @@ void ModularSynth::ResetLayout()
       mWelcomeScreen->SetName("welcome");
       mWelcomeScreen->CreateUIControls();
       mWelcomeScreen->Init();
+      mWelcomeScreen->SetOwningContainer(GetUIContainer());
       if (!mIsLoadingState && sFrameCount < 10 && UserPrefs.show_welcome_screen.Get())
          mWelcomeScreen->Show();
-      else
-         mWelcomeScreen->SetShowing(false);
-      mModuleContainer.AddModule(mWelcomeScreen);
    }
 
    GetDrawOffset().set(0, 0);
@@ -3637,7 +3636,7 @@ void ModularSynth::OnConsoleInput(std::string command /* = "" */)
       }
       else if (tokens[0] == "welcomescreen")
       {
-         mWelcomeScreen->Show();
+         PushModalFocusItem(mWelcomeScreen);
       }
       else if (tokens[0] == "dump" && tokens.size() >= 2)
       {
@@ -3936,8 +3935,6 @@ void ModularSynth::SetFatalError(std::string error)
          mUserPrefsEditor->Show();
       if (TheTitleBar != nullptr)
          TheTitleBar->SetShowing(false);
-      if (mWelcomeScreen != nullptr)
-         mWelcomeScreen->SetShowing(false);
    }
 }
 

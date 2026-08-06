@@ -1,4 +1,4 @@
-/**
+/*
     bespoke synth, a software modular synthesizer
     Copyright (C) 2021 Ryan Challinor (contact: awwbees@gmail.com)
 
@@ -44,6 +44,8 @@ class LooperRecorder;
 class Rewriter;
 class Sample;
 class LooperGranulator;
+class PatchCableSource; // added: playhead output cable
+class IModulator;      // added: playhead modulator
 
 #define LOOPER_COMMIT_FADE_SAMPLES 200
 
@@ -232,6 +234,10 @@ private:
    float mLastInputSample[ChannelBuffer::kMaxNumChannels];
    float mBufferTempo{ -1 };
    ClickButton* mResampleButton{ nullptr };
+
+   // playhead output: modulator + cable
+   PatchCableSource* mPosCable{ nullptr };
+   IModulator* mPosModulator{ nullptr };
 
    //beatwheel
    bool mBeatwheel{ false };

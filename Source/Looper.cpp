@@ -34,12 +34,39 @@
 #include "Profiler.h"
 #include "Rewriter.h"
 #include "LooperGranulator.h"
+#include "PatchCableSource.h"
+#include "IModulator.h"
 
 float Looper::mBeatwheelPosRight = 0;
 float Looper::mBeatwheelDepthRight = 0;
 float Looper::mBeatwheelPosLeft = 0;
 float Looper::mBeatwheelDepthLeft = 0;
 bool Looper::mBeatwheelSingleMeasure = 0;
+
+struct PlayheadModulator : public IModulator
+{
+   PlayheadModulator(Looper* owner)
+   : mOwner(owner)
+   {
+   }
+
+   float Value(int samplesIn = 0) override
+   {
+      if (!mOwner || mOwner->GetLoopLength() <= 0)
+         return GetMin();
+
+      // Advance samplesIn by playback speed to match audio read offset logic.
+      int sampleAdvance = int(samplesIn * mOwner->GetPlaybackSpeed());
+      float posSamples = mOwner->GetActualLoopPos(sampleAdvance);
+      float norm = posSamples / float(mOwner->GetLoopLength()); // 0..1
+      // Map into the modulator target range.
+      return ofLerp(GetMin(), GetMax(), norm);
+   }
+
+   bool Active() const override { return mOwner && mOwner->IsEnabled(); }
+
+   Looper* mOwner{ nullptr };
+};
 
 namespace
 {
@@ -103,6 +130,13 @@ void Looper::CreateUIControls()
    mKeepPitchCheckbox = new Checkbox(this, "auto", -1, -1, &mKeepPitch);
    mResampleButton = new ClickButton(this, "resample for tempo", 15, 40);
 
+   // playhead modulator output
+   mPosModulator = new PlayheadModulator(this);
+   mPosCable = new PatchCableSource(this, kConnectionType_Modulator);
+   mPosCable->SetModulatorOwner(mPosModulator);
+   AddPatchCableSource(mPosCable);
+   }
+
    mNumBarsSelector->AddLabel(" 1 ", 1);
    mNumBarsSelector->AddLabel(" 2 ", 2);
    mNumBarsSelector->AddLabel(" 3 ", 3);
@@ -139,7 +173,6 @@ void Looper::CreateUIControls()
    mScratchSpeedSlider->PositionTo(mLoopPosOffsetSlider, kAnchor_Below);
    mAllowScratchCheckbox->PositionTo(mScratchSpeedSlider, kAnchor_Right);
    mPassthroughCheckbox->PositionTo(mScratchSpeedSlider, kAnchor_Below);
-}
 
 Looper::~Looper()
 {
@@ -147,6 +180,12 @@ Looper::~Looper()
    delete mUndoBuffer;
    for (int i = 0; i < ChannelBuffer::kMaxNumChannels; ++i)
       delete mPitchShifter[i];
+   
+   if (mPosModulator)
+   {
+      delete mPosModulator;
+      mPosModulator = nullptr;
+   }
 }
 
 void Looper::Exit()
